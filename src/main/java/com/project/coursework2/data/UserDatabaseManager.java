@@ -15,8 +15,8 @@ import static com.project.coursework2.data.DatabaseConnection.getConnection;
 /**
  * Data-access layer for the {@code User} table.
  * Provides authentication, retrieval, update, and deletion of user records.
- * All password parameters are hashed with SHA-256 via {@link PasswordUtils}
- * before being compared or stored.
+ * Passwords are stored as salted PBKDF2 hashes via {@link PasswordUtils}; login
+ * verifies the hash in Java and upgrades legacy SHA-256 hashes on success.
  *
  * @author CRBAS Team
  * @version 1.0
@@ -33,12 +33,12 @@ public class UserDatabaseManager {
      * @throws SQLException if database has a problem
      */
     public static User getUser(String login, String password) throws SQLException {
-        String query = "SELECT u.userID, u.name, u.firstName, u.lastName, u.email, u.role, u.maxActiveBookings " +
+        String query = "SELECT DISTINCT u.userID, u.name, u.firstName, u.lastName, u.email, u.role, " +
+                "u.maxActiveBookings, u.password " +
                 "FROM User u " +
                 "LEFT JOIN Student s ON u.userID = s.userID " +
                 "LEFT JOIN Staff st ON u.userID = st.userID " +
-                "WHERE (u.email = ? OR u.userID = ? OR s.studentID = ? OR st.staffID = ?) " +
-                "AND u.password = ?";
+                "WHERE u.email = ? OR u.userID = ? OR s.studentID = ? OR st.staffID = ?";
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -47,10 +47,13 @@ public class UserDatabaseManager {
             stmt.setString(2, login);
             stmt.setString(3, login);
             stmt.setString(4, login);
-            stmt.setString(5, PasswordUtils.hash(password));
 
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
+                while (rs.next()) {
+                    String storedHash = rs.getString("password");
+                    if (!PasswordUtils.verify(password, storedHash)) {
+                        continue;
+                    }
                     User user = new User(
                             rs.getString("userID"),
                             rs.getString("name"),
@@ -60,11 +63,23 @@ public class UserDatabaseManager {
                             rs.getString("role")
                     );
                     user.setMaxActiveBookings(rs.getInt("maxActiveBookings"));
+                    if (PasswordUtils.needsRehash(storedHash)) {
+                        updatePasswordHash(conn, user.getUserID(), password);
+                    }
                     return user;
                 }
             }
         }
         return null;
+    }
+
+    /** Replaces a user's stored hash, used to upgrade legacy hashes after a successful login. */
+    static void updatePasswordHash(Connection conn, String userId, String password) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement("UPDATE User SET password = ? WHERE userID = ?")) {
+            stmt.setString(1, PasswordUtils.hash(password));
+            stmt.setString(2, userId);
+            stmt.executeUpdate();
+        }
     }
 
     /**
@@ -103,7 +118,7 @@ public class UserDatabaseManager {
 
     /**
      * Updates name, email, and password for an existing user.
-     * The password is SHA-256 hashed before storage.
+     * The password is hashed with PBKDF2 before storage.
      *
      * @param userID    the ID of the user to update
      * @param firstName updated first name

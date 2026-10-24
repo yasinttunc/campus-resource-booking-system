@@ -22,6 +22,9 @@ I led the team, coordinated the Git workflow (feature branches, pull requests, p
 - **Admin panel** – manage users and resources, review bookings and move them through
   `pending → confirmed / cancelled → completed`.
 - **Account management** – profile updates, password changes and account deletion.
+- **Password security** – passwords are stored as salted PBKDF2-HMAC-SHA256 hashes
+  (600,000 iterations) and compared in constant time. Hashes from the original SHA-256
+  version are still accepted and upgraded automatically on the next successful login.
 - **Relational data model** – 12 SQLite tables with foreign keys, `CHECK` constraints and
   indexes; resource subtypes (study room, lab, equipment) and user subtypes (student, staff,
   admin) are modelled as separate tables keyed on the parent ID.
@@ -34,7 +37,8 @@ I led the team, coordinated the Git workflow (feature branches, pull requests, p
 | UI | JavaFX 21 (FXML + CSS), ControlsFX |
 | Persistence | SQLite via JDBC (`sqlite-jdbc`) |
 | Build | Maven (wrapper included) |
-| Testing | JUnit 5 |
+| Security | PBKDF2-HMAC-SHA256 (JDK `javax.crypto`) |
+| Testing | JUnit 5 with a temporary SQLite database |
 | CI | GitHub Actions |
 
 ## Architecture
@@ -82,6 +86,16 @@ All names and accounts are fictional.
 ./mvnw test
 ```
 
+The tests run against a temporary SQLite database built from the real schema and seed
+scripts, so they exercise the production code rather than copies of it:
+
+- `BookingServiceTest` – valid bookings, past dates, inactive resources, role
+  restrictions, overlapping vs. adjacent slots, maintenance windows, booking quotas and
+  cancellation freeing a slot.
+- `UserLoginTest` – login by email or student ID, wrong passwords, and the automatic
+  upgrade of legacy SHA-256 hashes.
+- `PasswordUtilsTest` – salting, verification and malformed stored values.
+
 ## Project structure
 
 ```
@@ -98,12 +112,9 @@ src/main/resources/
 
 ## Roadmap
 
-Known limitations I plan to address:
-
-- Replace unsalted SHA-256 password hashing with BCrypt.
-- Rewrite the unit tests to exercise `BookingService` and the data layer directly, using an
-  in-memory SQLite database, instead of re-implementing the rules inside the tests.
-- Rename the `com.project.coursework2` package and move SQL out of the controllers.
+- Rename the `com.project.coursework2` package and move the remaining SQL out of the
+  controllers into the data layer.
+- Replace static data-access classes with injected repositories to simplify testing.
 
 ## Team
 
