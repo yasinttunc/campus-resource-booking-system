@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.project</groupId>
-    <artifactId>Coursework2</artifactId>
+    <artifactId>campus-resource-booking-system</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>Coursework2</name>
+    <name>Campus Resource Booking System</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

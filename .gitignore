@@ -37,3 +37,12 @@ build/
 
 ### Mac OS ###
 .DS_Store
+### IntelliJ (whole folder) ###
+.idea/
+
+### Local SQLite database (recreated from src/main/resources/db on first run) ###
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.zip
