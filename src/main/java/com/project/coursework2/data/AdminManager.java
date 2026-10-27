@@ -24,16 +24,16 @@ import static com.project.coursework2.data.DatabaseConnection.getConnection;
 public class AdminManager {
 
     public static User getUser(String email, String password) throws SQLException {
-        String query = "SELECT userID, name, firstName, lastName, email, role, maxActiveBookings FROM User WHERE email = ? AND password = ?";
+        String query = "SELECT userID, name, firstName, lastName, email, role, maxActiveBookings, password " +
+                "FROM User WHERE email = ?";
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setString(1, email);
-            stmt.setString(2, PasswordUtils.hash(password));
 
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
+                if (rs.next() && PasswordUtils.verify(password, rs.getString("password"))) {
                     User user = new User(
                             rs.getString("userID"),
                             rs.getString("name"),
@@ -77,37 +77,12 @@ public class AdminManager {
     }
 
     public static boolean validateUser(String email, String password) throws SQLException {
-        String query = "SELECT 1 FROM User WHERE email = ? AND password = ?";
-
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setString(1, email);
-            stmt.setString(2, PasswordUtils.hash(password));
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                return rs.next();
-            }
-        }
+        return getUser(email, password) != null;
     }
 
     public static String getUserRole(String email, String password) throws SQLException {
-        String query = "SELECT role FROM User WHERE email = ? AND password = ?";
-
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setString(1, email);
-            stmt.setString(2, PasswordUtils.hash(password));
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("role");
-                }
-            }
-        }
-
-        return null;
+        User user = getUser(email, password);
+        return user == null ? null : user.getRole();
     }
 
     public static ArrayList<Booking> getAllBookings() throws SQLException {

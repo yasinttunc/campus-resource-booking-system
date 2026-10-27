@@ -129,6 +129,13 @@
                 </configuration>
             </plugin>
             <plugin>
+                <!-- Without an explicit version Maven falls back to Surefire 2.12.4,
+                     which cannot discover JUnit 5 tests and silently runs none. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
+            <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
